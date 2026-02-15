@@ -1,93 +1,96 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
-let scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
+let camera, scene, renderer;
+let arrowsPlaced = false;
+let selectedSource, selectedDestination;
 
-// CAMERA
-let camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  500
-);
+document.getElementById("startAR").addEventListener("click", async () => {
 
-camera.position.set(40, 40, 40);
-camera.lookAt(0, 0, 0);
+  selectedSource = document.getElementById("source").value;
+  selectedDestination = document.getElementById("destination").value;
 
-// RENDERER
-let renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+  if (selectedSource === selectedDestination) {
+    alert("Source and Destination cannot be same.");
+    return;
+  }
 
-// LIGHTS
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(50, 50, 50);
-scene.add(dirLight);
+  if (!navigator.xr) {
+    alert("Use Chrome on Android.");
+    return;
+  }
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const session = await navigator.xr.requestSession("immersive-ar", {
+    requiredFeatures: ["local-floor"]
+  });
 
-// -------- GROUND --------
-const groundGeometry = new THREE.PlaneGeometry(80, 80);
-const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x2e8b57 });
-const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
+  startAR(session);
+});
 
-// -------- BUILDING FUNCTION --------
-function createBuilding(name, x, z, color) {
+async function startAR(session) {
 
-  const geometry = new THREE.BoxGeometry(5, 10, 5);
-  const material = new THREE.MeshStandardMaterial({ color: color });
+  document.getElementById("ui").style.display = "none";
 
-  const building = new THREE.Mesh(geometry, material);
-  building.position.set(x, 5, z);
-  scene.add(building);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera();
 
-  createLabel(name, x, 12, z);
+  renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true
+  });
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType("local-floor");
+  renderer.xr.setSession(session);
+
+  document.body.appendChild(renderer.domElement);
+
+  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+  scene.add(light);
+
+  renderer.setAnimationLoop(render);
 }
 
-// -------- LABEL FUNCTION --------
-function createLabel(text, x, y, z) {
+function render() {
 
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-
-  canvas.width = 512;
-  canvas.height = 256;
-
-  context.fillStyle = "white";
-  context.font = "bold 50px Arial";
-  context.textAlign = "center";
-  context.fillText(text, 256, 140);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.SpriteMaterial({ map: texture });
-  const sprite = new THREE.Sprite(material);
-
-  sprite.scale.set(12, 6, 1);
-  sprite.position.set(x, y, z);
-
-  scene.add(sprite);
-}
-
-// -------- CREATE CAMPUS LAYOUT (Closer + Compact) --------
-createBuilding("SR Block", -15, -15, 0xff0000);
-createBuilding("AK Block", 0, -15, 0x0000ff);
-createBuilding("JC Block", 15, -15, 0xffff00);
-
-createBuilding("MT Block", -15, 10, 0xff00ff);
-createBuilding("Canteen", 15, 10, 0x00ffff);
-
-// -------- SIMPLE AUTO ROTATE CAMERA --------
-function animate() {
-  requestAnimationFrame(animate);
-
-  // Slowly rotate camera around campus
-  camera.position.x = 40 * Math.cos(Date.now() * 0.0005);
-  camera.position.z = 40 * Math.sin(Date.now() * 0.0005);
-  camera.lookAt(0, 0, 0);
+  if (!arrowsPlaced) {
+    placeArrows();
+    arrowsPlaced = true;
+  }
 
   renderer.render(scene, camera);
 }
 
-animate();
+function placeArrows() {
+
+  // Get forward direction of camera
+  const forward = new THREE.Vector3(0, 0, -1);
+  forward.applyQuaternion(camera.quaternion);
+  forward.y = 0;
+  forward.normalize();
+
+  // Starting point: 1 meter in front
+  const startPosition = new THREE.Vector3(0, 0, -1);
+  startPosition.applyQuaternion(camera.quaternion);
+  startPosition.add(camera.position);
+
+  for (let i = 0; i < 8; i++) {
+
+    const geometry = new THREE.ConeGeometry(0.15, 0.4, 16);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x00ff00
+    });
+
+    const arrow = new THREE.Mesh(geometry, material);
+
+    // Make arrow lie flat
+    arrow.rotation.x = Math.PI / 2;
+
+    // Space arrows forward
+    const offset = forward.clone().multiplyScalar(i * 0.7);
+
+    arrow.position.copy(startPosition.clone().add(offset));
+
+    scene.add(arrow);
+  }
+}

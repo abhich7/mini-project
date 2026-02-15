@@ -1,13 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Campus 3D Map</title>
+  <title>AR Campus Navigation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; font-family: Arial; }
+
+    #ui {
+      position: absolute;
+      top: 20px;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+    }
+
+    select, button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+    }
+
+    button {
+      background: green;
+      color: white;
+    }
   </style>
 </head>
 <body>
-  <script type="module" src="script.js"></script>
+
+<div id="ui">
+  <select id="source">
+    <option value="SR">SR Block</option>
+    <option value="AK">AK Block</option>
+    <option value="JC">JC Block</option>
+    <option value="MT">MT Block</option>
+    <option value="CAN">Canteen</option>
+  </select>
+
+  <select id="destination">
+    <option value="SR">SR Block</option>
+    <option value="AK">AK Block</option>
+    <option value="JC">JC Block</option>
+    <option value="MT">MT Block</option>
+    <option value="CAN">Canteen</option>
+  </select>
+
+  <br>
+
+  <button id="startAR">Start AR Navigation</button>
+</div>
+
+<script type="module" src="script.js"></script>
+
 </body>
 </html>
-    
