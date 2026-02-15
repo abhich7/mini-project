@@ -1,14 +1,9 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
 let camera, scene, renderer;
-let hitTestSource = null;
-let localSpace = null;
-let viewerSpace = null;
-let reticle;
-
 let selectedSource, selectedDestination;
 
-// Imaginary campus layout (grid style)
+// Imaginary campus grid layout
 const campusMap = {
   SR: { x: 0, z: 0 },
   AK: { x: 5, z: 0 },
@@ -34,12 +29,12 @@ button.addEventListener("click", async () => {
   }
 
   if (!navigator.xr) {
-    alert("WebXR not supported.");
+    alert("WebXR not supported. Use Chrome on Android.");
     return;
   }
 
   const session = await navigator.xr.requestSession("immersive-ar", {
-    requiredFeatures: ["hit-test", "local-floor"]
+    requiredFeatures: ["local-floor"]
   });
 
   startAR(session);
@@ -63,58 +58,18 @@ async function startAR(session) {
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   scene.add(light);
 
-  localSpace = await session.requestReferenceSpace("local-floor");
-  viewerSpace = await session.requestReferenceSpace("viewer");
-
-  hitTestSource = await session.requestHitTestSource({
-    space: viewerSpace
+  // Wait one frame so camera is initialized
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, camera);
   });
 
-  const ringGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
-  ringGeometry.rotateX(-Math.PI / 2);
-  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-
-  reticle = new THREE.Mesh(ringGeometry, ringMaterial);
-  reticle.matrixAutoUpdate = false;
-  reticle.visible = false;
-
-  scene.add(reticle);
-
-  session.addEventListener("select", () => {
-    if (reticle.visible) {
-      placeNavigation(reticle.matrix);
-    }
-  });
-
-  renderer.setAnimationLoop(render);
+  // Small delay to ensure camera pose ready
+  setTimeout(() => {
+    placeNavigation();
+  }, 500);
 }
 
-function render(timestamp, frame) {
-
-  if (frame) {
-    const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-    if (hitTestResults.length > 0) {
-      const hit = hitTestResults[0];
-      const pose = hit.getPose(localSpace);
-
-      reticle.visible = true;
-      reticle.matrix.fromArray(pose.transform.matrix);
-    } else {
-      reticle.visible = false;
-    }
-  }
-
-  renderer.render(scene, camera);
-}
-
-function placeNavigation(matrix) {
-
-  const basePosition = new THREE.Vector3();
-  const quaternion = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-
-  matrix.decompose(basePosition, quaternion, scale);
+function placeNavigation() {
 
   const source = campusMap[selectedSource];
   const dest = campusMap[selectedDestination];
@@ -122,7 +77,12 @@ function placeNavigation(matrix) {
   const dx = dest.x - source.x;
   const dz = dest.z - source.z;
 
-  // Camera forward
+  // Base position: 1 meter in front of camera
+  const basePosition = new THREE.Vector3(0, 0, -1);
+  basePosition.applyQuaternion(camera.quaternion);
+  basePosition.add(camera.position);
+
+  // Camera forward direction
   const forward = new THREE.Vector3(0, 0, -1);
   forward.applyQuaternion(camera.quaternion);
   forward.y = 0;
@@ -139,22 +99,20 @@ function placeNavigation(matrix) {
 
   const straightGeometry = new THREE.CylinderGeometry(0.05, 0.05, 3, 16);
 
-  // -------- STRAIGHT PART --------
+  // -------- FIRST STRAIGHT --------
   const straight = new THREE.Mesh(straightGeometry, straightMaterial);
   straight.position.copy(basePosition.clone().add(forward.clone().multiplyScalar(1.5)));
   straight.rotation.x = Math.PI / 2;
   scene.add(straight);
 
-  // -------- TURN DECISION --------
+  // Decide turn direction
   let turnDirection = null;
 
   if (Math.abs(dx) > Math.abs(dz)) {
     turnDirection = dx > 0 ? "RIGHT" : "LEFT";
-  } else {
-    turnDirection = dz > 0 ? "STRAIGHT" : "BACK";
   }
 
-  if (turnDirection === "LEFT" || turnDirection === "RIGHT") {
+  if (turnDirection) {
 
     const turnGeometry = new THREE.TorusGeometry(0.4, 0.05, 16, 100, Math.PI / 2);
     const turn = new THREE.Mesh(turnGeometry, turnMaterial);
