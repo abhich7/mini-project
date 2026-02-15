@@ -1,71 +1,99 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
 let camera, scene, renderer;
-let referenceSpace;
+let hitTestSource = null;
+let localSpace = null;
+let viewerSpace = null;
+let reticle;
 
 const button = document.getElementById("startAR");
 
 button.addEventListener("click", async () => {
-
-  const source = document.getElementById("source").value;
-  const destination = document.getElementById("destination").value;
-
-  if (source === destination) {
-    alert("Source and destination cannot be the same.");
-    return;
-  }
 
   if (!navigator.xr) {
     alert("WebXR not supported. Use Chrome on Android.");
     return;
   }
 
-  try {
-    const session = await navigator.xr.requestSession("immersive-ar", {
-      requiredFeatures: ["local-floor"]
-    });
+  const session = await navigator.xr.requestSession("immersive-ar", {
+    requiredFeatures: ["hit-test", "local-floor"]
+  });
 
-    startAR(session);
-
-  } catch (error) {
-    alert("Failed to start AR session.");
-    console.error(error);
-  }
+  startAR(session);
 });
 
-function startAR(session) {
+async function startAR(session) {
 
   document.getElementById("ui").style.display = "none";
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera();
 
-  renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true
-  });
-
+  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
   renderer.xr.setSession(session);
 
   document.body.appendChild(renderer.domElement);
 
-  referenceSpace = renderer.xr.getReferenceSpace();
+  localSpace = await session.requestReferenceSpace("local-floor");
+  viewerSpace = await session.requestReferenceSpace("viewer");
 
-  createArrowPath();
-
-  renderer.setAnimationLoop(() => {
-    renderer.render(scene, camera);
+  hitTestSource = await session.requestHitTestSource({
+    space: viewerSpace
   });
+
+  // Reticle (shows detected floor)
+  const ringGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
+  ringGeometry.rotateX(-Math.PI / 2);
+
+  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  reticle = new THREE.Mesh(ringGeometry, ringMaterial);
+  reticle.matrixAutoUpdate = false;
+  reticle.visible = false;
+
+  scene.add(reticle);
+
+  session.addEventListener("select", () => {
+    if (reticle.visible) {
+      placeArrows(reticle.matrix);
+    }
+  });
+
+  renderer.setAnimationLoop(render);
 }
 
-function createArrowPath() {
+function render(timestamp, frame) {
 
-  const arrowCount = 15;
-  const spacing = 0.5;
+  if (frame) {
 
-  for (let i = 1; i <= arrowCount; i++) {
+    const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+    if (hitTestResults.length > 0) {
+
+      const hit = hitTestResults[0];
+      const pose = hit.getPose(localSpace);
+
+      reticle.visible = true;
+      reticle.matrix.fromArray(pose.transform.matrix);
+
+    } else {
+      reticle.visible = false;
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+function placeArrows(matrix) {
+
+  const position = new THREE.Vector3();
+  const quaternion = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+
+  matrix.decompose(position, quaternion, scale);
+
+  for (let i = 0; i < 10; i++) {
 
     const geometry = new THREE.ConeGeometry(0.1, 0.3, 16);
     const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
@@ -73,9 +101,8 @@ function createArrowPath() {
 
     arrow.rotation.x = Math.PI / 2;
 
-    // Position arrows properly in world space
-    arrow.position.z = -i * spacing;
-    arrow.position.y = 0;
+    arrow.position.copy(position);
+    arrow.position.z -= i * 0.5;
 
     scene.add(arrow);
   }
