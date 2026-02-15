@@ -1,6 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
 let camera, scene, renderer;
+let referenceSpace;
 
 const button = document.getElementById("startAR");
 
@@ -50,6 +51,8 @@ function startAR(session) {
 
   document.body.appendChild(renderer.domElement);
 
+  referenceSpace = renderer.xr.getReferenceSpace();
+
   createArrowPath();
 
   renderer.setAnimationLoop(() => {
@@ -59,20 +62,20 @@ function startAR(session) {
 
 function createArrowPath() {
 
-  const arrowCount = 10;     // number of arrows
-  const spacing = 0.5;       // distance between arrows
+  const arrowCount = 15;
+  const spacing = 0.5;
 
   for (let i = 1; i <= arrowCount; i++) {
 
-    const arrowGeometry = new THREE.ConeGeometry(0.1, 0.3, 16);
-    const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+    const geometry = new THREE.ConeGeometry(0.1, 0.3, 16);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const arrow = new THREE.Mesh(geometry, material);
 
-    // Rotate arrow to face forward
     arrow.rotation.x = Math.PI / 2;
 
-    // Place arrows in straight line forward
-    arrow.position.set(0, 0, -i * spacing);
+    // Position arrows properly in world space
+    arrow.position.z = -i * spacing;
+    arrow.position.y = 0;
 
     scene.add(arrow);
   }
