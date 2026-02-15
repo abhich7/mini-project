@@ -87,11 +87,16 @@ function render(timestamp, frame) {
 
 function placeArrows(matrix) {
 
-  const position = new THREE.Vector3();
-  const quaternion = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
+  const basePosition = new THREE.Vector3();
+  const baseQuaternion = new THREE.Quaternion();
+  const baseScale = new THREE.Vector3();
 
-  matrix.decompose(position, quaternion, scale);
+  matrix.decompose(basePosition, baseQuaternion, baseScale);
+
+  // Get camera forward direction
+  const forward = new THREE.Vector3(0, 0, -1);
+  forward.applyQuaternion(camera.quaternion);
+  forward.normalize();
 
   for (let i = 0; i < 10; i++) {
 
@@ -99,10 +104,15 @@ function placeArrows(matrix) {
     const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     const arrow = new THREE.Mesh(geometry, material);
 
+    // Rotate arrow to lie flat
     arrow.rotation.x = Math.PI / 2;
 
-    arrow.position.copy(position);
-    arrow.position.z -= i * 0.5;
+    // Move arrow forward from base position
+    const newPosition = basePosition.clone().add(
+      forward.clone().multiplyScalar(i * 0.6)
+    );
+
+    arrow.position.copy(newPosition);
 
     scene.add(arrow);
   }
