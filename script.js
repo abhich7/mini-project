@@ -1,145 +1,83 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
-let camera, scene, renderer;
-let selectedSource, selectedDestination;
-let localSpace, viewerSpace, hitTestSource;
+let scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
 
-const campusMap = {
-  SR: { x: 0, z: 0 },
-  AK: { x: 5, z: 0 },
-  JC: { x: 5, z: 5 },
-  MT: { x: 10, z: 5 },
-  CV: { x: 10, z: 10 },
-  VS: { x: 15, z: 10 },
-  MG: { x: 15, z: 15 },
-  KC: { x: 20, z: 15 },
-  CAN: { x: 20, z: 20 }
-};
+let camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
 
-document.getElementById("startAR").addEventListener("click", async () => {
+camera.position.set(30, 30, 30);
+camera.lookAt(0, 0, 0);
 
-  selectedSource = document.getElementById("source").value;
-  selectedDestination = document.getElementById("destination").value;
+let renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-  if (selectedSource === selectedDestination) {
-    alert("Source and destination cannot be same.");
-    return;
-  }
+// LIGHTS
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(20, 40, 20);
+scene.add(directionalLight);
 
-  const session = await navigator.xr.requestSession("immersive-ar", {
-    requiredFeatures: ["hit-test", "local-floor"]
-  });
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-  startAR(session);
-});
+// -------- GROUND --------
+const groundGeometry = new THREE.PlaneGeometry(100, 100);
+const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
 
-async function startAR(session) {
+// -------- BUILDING FUNCTION --------
+function createBuilding(name, x, z, color) {
 
-  document.getElementById("ui").style.display = "none";
+  const geometry = new THREE.BoxGeometry(6, 8, 6);
+  const material = new THREE.MeshStandardMaterial({ color: color });
 
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera();
+  const building = new THREE.Mesh(geometry, material);
+  building.position.set(x, 4, z);
+  scene.add(building);
 
-  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true;
-  renderer.xr.setReferenceSpaceType("local-floor");
-  renderer.xr.setSession(session);
-  document.body.appendChild(renderer.domElement);
-
-  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-  scene.add(light);
-
-  localSpace = await session.requestReferenceSpace("local-floor");
-  viewerSpace = await session.requestReferenceSpace("viewer");
-
-  hitTestSource = await session.requestHitTestSource({
-    space: viewerSpace
-  });
-
-  renderer.setAnimationLoop(render);
+  createLabel(name, x, 10, z);
 }
 
-function render(timestamp, frame) {
+// -------- LABEL FUNCTION --------
+function createLabel(text, x, y, z) {
 
-  if (frame && hitTestSource) {
-
-    const hits = frame.getHitTestResults(hitTestSource);
-
-    if (hits.length > 0) {
-
-      const pose = hits[0].getPose(localSpace);
-
-      placeNavigation(pose.transform.matrix);
-      hitTestSource = null; // run only once
-    }
-  }
-
-  renderer.render(scene, camera);
-}
-
-function placeNavigation(matrixArray) {
-
-  const matrix = new THREE.Matrix4();
-  matrix.fromArray(matrixArray);
-
-  const basePosition = new THREE.Vector3();
-  const quaternion = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-
-  matrix.decompose(basePosition, quaternion, scale);
-
-  const source = campusMap[selectedSource];
-  const dest = campusMap[selectedDestination];
-
-  const dx = dest.x - source.x;
-  const dz = dest.z - source.z;
-
-  const forward = new THREE.Vector3(0, 0, -1);
-  forward.applyQuaternion(camera.quaternion);
-  forward.y = 0;
-  forward.normalize();
-
-  const lineLength = 4;
-
-  // -------- LINE --------
-  const lineGeometry = new THREE.BoxGeometry(0.1, 0.02, lineLength);
-  const lineMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-
-  const line = new THREE.Mesh(lineGeometry, lineMaterial);
-  line.position.copy(basePosition.clone().add(forward.clone().multiplyScalar(lineLength / 2)));
-  line.rotation.y = Math.atan2(forward.x, forward.z);
-
-  scene.add(line);
-
-  // -------- ARROW HEAD --------
-  const arrowGeometry = new THREE.ConeGeometry(0.25, 0.5, 32);
-  const arrowMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-
-  const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-  arrow.position.copy(basePosition.clone().add(forward.clone().multiplyScalar(lineLength + 0.3)));
-  arrow.rotation.x = Math.PI;
-  arrow.rotation.y = Math.atan2(forward.x, forward.z);
-
-  scene.add(arrow);
-
-  // -------- TEXT --------
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
+
   canvas.width = 512;
   canvas.height = 256;
 
   context.fillStyle = "white";
   context.font = "bold 60px Arial";
-  context.fillText("Walk Straight", 50, 150);
+  context.fillText(text, 80, 150);
 
   const texture = new THREE.CanvasTexture(canvas);
   const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
   const sprite = new THREE.Sprite(spriteMaterial);
 
-  sprite.scale.set(2, 1, 1);
-  sprite.position.copy(basePosition.clone().add(forward.clone().multiplyScalar(2)));
-  sprite.position.y += 1.5;
+  sprite.scale.set(10, 5, 1);
+  sprite.position.set(x, y, z);
 
   scene.add(sprite);
 }
+
+// -------- CREATE CAMPUS --------
+createBuilding("SR Block", 0, 0, 0xff0000);
+createBuilding("AK Block", 15, 0, 0x0000ff);
+createBuilding("JC Block", 15, 15, 0xffff00);
+createBuilding("MT Block", 30, 15, 0xff00ff);
+createBuilding("Canteen", 40, 30, 0x00ffff);
+
+// -------- ANIMATION LOOP --------
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+animate();
