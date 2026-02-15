@@ -15,11 +15,17 @@ button.addEventListener("click", async () => {
     return;
   }
 
-  const session = await navigator.xr.requestSession("immersive-ar", {
-    requiredFeatures: ["hit-test", "local-floor"]
-  });
+  try {
+    const session = await navigator.xr.requestSession("immersive-ar", {
+      requiredFeatures: ["hit-test", "local-floor"]
+    });
 
-  startAR(session);
+    startAR(session);
+
+  } catch (error) {
+    alert("Failed to start AR session.");
+    console.error(error);
+  }
 });
 
 async function startAR(session) {
@@ -29,12 +35,23 @@ async function startAR(session) {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera();
 
-  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true
+  });
+
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
-  renderer.xr.setSession(session);
 
+  // More stable reference space
+  renderer.xr.setReferenceSpaceType("local-floor");
+
+  renderer.xr.setSession(session);
   document.body.appendChild(renderer.domElement);
+
+  // Add lighting for stability
+  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+  scene.add(light);
 
   localSpace = await session.requestReferenceSpace("local-floor");
   viewerSpace = await session.requestReferenceSpace("viewer");
@@ -43,7 +60,7 @@ async function startAR(session) {
     space: viewerSpace
   });
 
-  // Reticle (shows detected floor)
+  // Floor detection reticle
   const ringGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
   ringGeometry.rotateX(-Math.PI / 2);
 
@@ -96,18 +113,24 @@ function placeArrows(matrix) {
   // Get camera forward direction
   const forward = new THREE.Vector3(0, 0, -1);
   forward.applyQuaternion(camera.quaternion);
+  forward.y = 0; // keep arrows on floor plane
   forward.normalize();
 
   for (let i = 0; i < 10; i++) {
 
     const geometry = new THREE.ConeGeometry(0.1, 0.3, 16);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x00ff00,
+      roughness: 0.5,
+      metalness: 0.1
+    });
+
     const arrow = new THREE.Mesh(geometry, material);
 
-    // Rotate arrow to lie flat
+    // Lay arrow flat
     arrow.rotation.x = Math.PI / 2;
 
-    // Move arrow forward from base position
+    // Calculate forward position
     const newPosition = basePosition.clone().add(
       forward.clone().multiplyScalar(i * 0.6)
     );
