@@ -5,19 +5,20 @@ let hitTestSource = null;
 let localSpace = null;
 let viewerSpace = null;
 let reticle;
+
 let selectedSource, selectedDestination;
 
-// Simulated campus map (2D layout)
+// Imaginary campus layout (grid style)
 const campusMap = {
   SR: { x: 0, z: 0 },
   AK: { x: 5, z: 0 },
-  JC: { x: 10, z: 3 },
-  MT: { x: 15, z: 3 },
-  CV: { x: 20, z: 5 },
-  VS: { x: 25, z: 8 },
-  MG: { x: 30, z: 10 },
-  KC: { x: 35, z: 12 },
-  CAN: { x: 40, z: 15 }
+  JC: { x: 5, z: 5 },
+  MT: { x: 10, z: 5 },
+  CV: { x: 10, z: 10 },
+  VS: { x: 15, z: 10 },
+  MG: { x: 15, z: 15 },
+  KC: { x: 20, z: 15 },
+  CAN: { x: 20, z: 20 }
 };
 
 const button = document.getElementById("startAR");
@@ -81,7 +82,7 @@ async function startAR(session) {
 
   session.addEventListener("select", () => {
     if (reticle.visible) {
-      generateNavigationPath(reticle.matrix);
+      placeNavigation(reticle.matrix);
     }
   });
 
@@ -107,7 +108,7 @@ function render(timestamp, frame) {
   renderer.render(scene, camera);
 }
 
-function generateNavigationPath(matrix) {
+function placeNavigation(matrix) {
 
   const basePosition = new THREE.Vector3();
   const quaternion = new THREE.Quaternion();
@@ -115,34 +116,74 @@ function generateNavigationPath(matrix) {
 
   matrix.decompose(basePosition, quaternion, scale);
 
-  const sourceCoord = campusMap[selectedSource];
-  const destCoord = campusMap[selectedDestination];
+  const source = campusMap[selectedSource];
+  const dest = campusMap[selectedDestination];
 
-  const dx = destCoord.x - sourceCoord.x;
-  const dz = destCoord.z - sourceCoord.z;
+  const dx = dest.x - source.x;
+  const dz = dest.z - source.z;
 
-  const pathLength = Math.sqrt(dx * dx + dz * dz);
-  const steps = Math.floor(pathLength);
+  // Camera forward
+  const forward = new THREE.Vector3(0, 0, -1);
+  forward.applyQuaternion(camera.quaternion);
+  forward.y = 0;
+  forward.normalize();
 
-  const direction = new THREE.Vector3(dx, 0, dz).normalize();
+  // Right direction
+  const right = new THREE.Vector3(1, 0, 0);
+  right.applyQuaternion(camera.quaternion);
+  right.y = 0;
+  right.normalize();
 
-  for (let i = 0; i < steps; i++) {
+  const straightMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  const turnMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
 
-    const geometry = new THREE.ConeGeometry(0.1, 0.3, 16);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x00ff00,
-      roughness: 0.5,
-      metalness: 0.1
-    });
+  const straightGeometry = new THREE.CylinderGeometry(0.05, 0.05, 3, 16);
 
-    const arrow = new THREE.Mesh(geometry, material);
-    arrow.rotation.x = Math.PI / 2;
+  // -------- STRAIGHT PART --------
+  const straight = new THREE.Mesh(straightGeometry, straightMaterial);
+  straight.position.copy(basePosition.clone().add(forward.clone().multiplyScalar(1.5)));
+  straight.rotation.x = Math.PI / 2;
+  scene.add(straight);
 
-    const newPosition = basePosition.clone().add(
-      direction.clone().multiplyScalar(i * 0.8)
+  // -------- TURN DECISION --------
+  let turnDirection = null;
+
+  if (Math.abs(dx) > Math.abs(dz)) {
+    turnDirection = dx > 0 ? "RIGHT" : "LEFT";
+  } else {
+    turnDirection = dz > 0 ? "STRAIGHT" : "BACK";
+  }
+
+  if (turnDirection === "LEFT" || turnDirection === "RIGHT") {
+
+    const turnGeometry = new THREE.TorusGeometry(0.4, 0.05, 16, 100, Math.PI / 2);
+    const turn = new THREE.Mesh(turnGeometry, turnMaterial);
+
+    turn.position.copy(basePosition.clone().add(forward.clone().multiplyScalar(3)));
+    turn.rotation.x = Math.PI / 2;
+
+    if (turnDirection === "LEFT") {
+      turn.rotation.z = Math.PI;
+    }
+
+    scene.add(turn);
+
+    const secondDir = turnDirection === "RIGHT"
+      ? right
+      : right.clone().negate();
+
+    const straight2 = new THREE.Mesh(straightGeometry, straightMaterial);
+
+    straight2.position.copy(
+      basePosition
+        .clone()
+        .add(forward.clone().multiplyScalar(3))
+        .add(secondDir.clone().multiplyScalar(1.5))
     );
 
-    arrow.position.copy(newPosition);
-    scene.add(arrow);
+    straight2.rotation.x = Math.PI / 2;
+    straight2.rotation.z = Math.PI / 2;
+
+    scene.add(straight2);
   }
 }
