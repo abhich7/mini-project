@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MLRIT AR Navigation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>MLRIT AR Indoor Navigation</h1>
+
+  <label>Present Location:</label>
+  <select id="source">
+    <option value="SR">SR Block</option>
+    <option value="AK">AK Block</option>
+    <option value="JC">JC Block</option>
+    <option value="MT">MT Block</option>
+    <option value="CV">Placement & Training Block</option>
+    <option value="VS">VS Block</option>
+    <option value="MG">M&G Block</option>
+    <option value="KC">KC Block</option>
+    <option value="CAN">Canteen</option>
+  </select>
+
+  <br><br>
+
+  <label>Destination:</label>
+  <select id="destination">
+    <option value="SR">SR Block</option>
+    <option value="AK">AK Block</option>
+    <option value="JC">JC Block</option>
+    <option value="MT">MT Block</option>
+    <option value="CV">Placement & Training Block</option>
+    <option value="VS">VS Block</option>
+    <option value="MG">M&G Block</option>
+    <option value="KC">KC Block</option>
+    <option value="CAN">Canteen</option>
+  </select>
+
+  <br><br>
+
+  <button onclick="startNavigation()">Start Navigation</button>
+
+  <script src="script.js"></script>
+</body>
+</html>
