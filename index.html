@@ -1,45 +1,88 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>MLRIT AR Navigation</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>MLRIT AR Indoor Navigation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    select, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+      width: 250px;
+    }
+
+    button {
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+  </style>
 </head>
+
 <body>
 
-  <h1>MLRIT AR Indoor Navigation</h1>
+  <h2>MLRIT AR Indoor Navigation</h2>
 
-  <label>Present Location:</label>
-  <select id="source">
-    <option value="SR">SR Block</option>
-    <option value="AK">AK Block</option>
-    <option value="JC">JC Block</option>
-    <option value="MT">MT Block</option>
-    <option value="CV">Placement & Training Block</option>
-    <option value="VS">VS Block</option>
-    <option value="MG">M&G Block</option>
-    <option value="KC">KC Block</option>
-    <option value="CAN">Canteen</option>
-  </select>
+  <div id="ui">
+    <label>Present Location:</label><br>
+    <select id="source">
+      <option value="SR">SR Block</option>
+      <option value="AK">AK Block</option>
+      <option value="JC">JC Block</option>
+      <option value="MT">MT Block</option>
+      <option value="CV">Placement & Training Block</option>
+      <option value="VS">VS Block</option>
+      <option value="MG">M&G Block</option>
+      <option value="KC">KC Block</option>
+      <option value="CAN">Canteen</option>
+    </select>
 
-  <br><br>
+    <br><br>
 
-  <label>Destination:</label>
-  <select id="destination">
-    <option value="SR">SR Block</option>
-    <option value="AK">AK Block</option>
-    <option value="JC">JC Block</option>
-    <option value="MT">MT Block</option>
-    <option value="CV">Placement & Training Block</option>
-    <option value="VS">VS Block</option>
-    <option value="MG">M&G Block</option>
-    <option value="KC">KC Block</option>
-    <option value="CAN">Canteen</option>
-  </select>
+    <label>Destination:</label><br>
+    <select id="destination">
+      <option value="SR">SR Block</option>
+      <option value="AK">AK Block</option>
+      <option value="JC">JC Block</option>
+      <option value="MT">MT Block</option>
+      <option value="CV">Placement & Training Block</option>
+      <option value="VS">VS Block</option>
+      <option value="MG">M&G Block</option>
+      <option value="KC">KC Block</option>
+      <option value="CAN">Canteen</option>
+    </select>
 
-  <br><br>
+    <br><br>
 
-  <button onclick="startNavigation()">Start Navigation</button>
+    <button id="startAR">Start AR Navigation</button>
+  </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
+
 </body>
 </html>
