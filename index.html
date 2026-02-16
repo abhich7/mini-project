@@ -1,36 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AR Campus Navigation</title>
+  <title>Campus AR Navigation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin: 0; overflow: hidden; font-family: Arial; }
+    body { margin:0; overflow:hidden; font-family:Arial; background:#f2f2f2; }
 
     #ui {
-      position: absolute;
-      top: 20px;
-      width: 100%;
-      text-align: center;
-      z-index: 10;
+      position:absolute;
+      top:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:white;
+      padding:20px;
+      border-radius:15px;
+      box-shadow:0 5px 20px rgba(0,0,0,0.2);
+      z-index:10;
+      width:90%;
+      max-width:400px;
+      text-align:center;
     }
 
+    h2 { margin:0 0 15px 0; }
+
     select, button {
-      padding: 10px;
-      margin: 5px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: none;
+      width:100%;
+      padding:12px;
+      margin:8px 0;
+      border-radius:8px;
+      border:1px solid #ddd;
+      font-size:16px;
     }
 
     button {
-      background: green;
-      color: white;
+      background:#2ecc71;
+      color:white;
+      font-weight:bold;
+      border:none;
+    }
+
+    #subtitle {
+      position:absolute;
+      bottom:20px;
+      width:100%;
+      text-align:center;
+      font-size:18px;
+      font-weight:bold;
+      color:white;
+      text-shadow:0 0 10px black;
+      z-index:10;
     }
   </style>
 </head>
 <body>
 
 <div id="ui">
+  <h2>Campus Navigation</h2>
+
   <select id="source">
     <option value="SR">SR Block</option>
     <option value="AK">AK Block</option>
@@ -47,10 +73,10 @@
     <option value="CAN">Canteen</option>
   </select>
 
-  <br>
-
-  <button id="startAR">Start AR Navigation</button>
+  <button id="startAR">Start Navigation</button>
 </div>
+
+<div id="subtitle"></div>
 
 <script type="module" src="script.js"></script>
 
