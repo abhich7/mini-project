@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
 let camera, scene, renderer;
-let arrowsPlaced = false;
+let pathGroup;
 let selectedSource, selectedDestination;
 
 document.getElementById("startAR").addEventListener("click", async () => {
@@ -48,49 +48,80 @@ async function startAR(session) {
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   scene.add(light);
 
-  renderer.setAnimationLoop(render);
+  createNavigationPath();
+
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, camera);
+  });
 }
 
-function render() {
+function createNavigationPath() {
 
-  if (!arrowsPlaced) {
-    placeArrows();
-    arrowsPlaced = true;
-  }
+  pathGroup = new THREE.Group();
 
-  renderer.render(scene, camera);
-}
+  // Start 1 meter in front of camera
+  const basePosition = new THREE.Vector3(0, 0, -1);
+  basePosition.applyQuaternion(camera.quaternion);
+  basePosition.add(camera.position);
 
-function placeArrows() {
+  pathGroup.position.copy(basePosition);
 
-  // Get forward direction of camera
-  const forward = new THREE.Vector3(0, 0, -1);
-  forward.applyQuaternion(camera.quaternion);
-  forward.y = 0;
-  forward.normalize();
+  // Different predefined paths
+  const paths = {
+    "SR-CAN": [
+      { type: "straight", distance: 5 },
+      { type: "right", distance: 3 },
+      { type: "straight", distance: 4 }
+    ],
+    "AK-JC": [
+      { type: "straight", distance: 4 },
+      { type: "left", distance: 4 },
+      { type: "straight", distance: 3 }
+    ],
+    "JC-MT": [
+      { type: "straight", distance: 6 },
+      { type: "right", distance: 5 }
+    ]
+  };
 
-  // Starting point: 1 meter in front
-  const startPosition = new THREE.Vector3(0, 0, -1);
-  startPosition.applyQuaternion(camera.quaternion);
-  startPosition.add(camera.position);
+  const key = selectedSource + "-" + selectedDestination;
+  const selectedPath = paths[key] || [
+    { type: "straight", distance: 5 }
+  ];
 
-  for (let i = 0; i < 8; i++) {
+  let currentPosition = new THREE.Vector3(0, 0, 0);
+  let direction = new THREE.Vector3(0, 0, -1);
 
-    const geometry = new THREE.ConeGeometry(0.15, 0.4, 16);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x00ff00
-    });
+  selectedPath.forEach(step => {
 
-    const arrow = new THREE.Mesh(geometry, material);
+    if (step.type === "left") {
+      direction.applyAxisAngle(new THREE.Vector3(0,1,0), Math.PI / 2);
+    }
 
-    // Make arrow lie flat
-    arrow.rotation.x = Math.PI / 2;
+    if (step.type === "right") {
+      direction.applyAxisAngle(new THREE.Vector3(0,1,0), -Math.PI / 2);
+    }
 
-    // Space arrows forward
-    const offset = forward.clone().multiplyScalar(i * 0.7);
+    const arrowCount = Math.floor(step.distance);
 
-    arrow.position.copy(startPosition.clone().add(offset));
+    for (let i = 0; i < arrowCount; i++) {
 
-    scene.add(arrow);
-  }
+      const geometry = new THREE.ConeGeometry(0.15, 0.4, 16);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x00ff00
+      });
+
+      const arrow = new THREE.Mesh(geometry, material);
+      arrow.rotation.x = Math.PI / 2;
+
+      arrow.position.copy(currentPosition);
+      arrow.position.add(direction.clone().multiplyScalar(i + 1));
+
+      pathGroup.add(arrow);
+    }
+
+    currentPosition.add(direction.clone().multiplyScalar(step.distance));
+  });
+
+  scene.add(pathGroup);
 }
