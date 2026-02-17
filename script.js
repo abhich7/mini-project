@@ -1,27 +1,19 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
 let camera, scene, renderer;
-let arrowMesh = null;
+let arrowMesh;
 let subtitle = document.getElementById("subtitle");
 
-let navigationSteps = [];
-let currentStepIndex = 0;
-let stepStartPosition = new THREE.Vector3();
+let steps = [
+  { type:"straight", text:"Walk straight 100 meters" },
+  { type:"left", text:"Turn left and walk 50 meters" },
+  { type:"right", text:"Turn right and walk 30 meters" },
+  { type:"straight", text:"Destination is ahead" }
+];
+
+let currentStep = 0;
 
 document.getElementById("startAR").addEventListener("click", async () => {
-
-  const source = document.getElementById("source").value;
-  const destination = document.getElementById("destination").value;
-
-  if (!source || !destination) {
-    alert("Please select source and destination");
-    return;
-  }
-
-  if (source === destination) {
-    alert("Source and destination cannot be same");
-    return;
-  }
 
   if (!navigator.xr) {
     alert("Use Chrome on Android");
@@ -46,107 +38,59 @@ async function startAR(session) {
   renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
-  renderer.xr.setReferenceSpaceType("local-floor");
   renderer.xr.setSession(session);
 
   document.body.appendChild(renderer.domElement);
 
-  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-  scene.add(light);
+  showStep();
 
-  setupRoute();
-
-  renderer.setAnimationLoop(update);
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, camera);
+  });
 }
 
-function setupRoute() {
+function showStep() {
 
-  navigationSteps = [
-    { type:"straight", distance:2, text:"Walk straight 2 meters" },
-    { type:"left", distance:1.5, text:"Turn left and walk 1.5 meters" },
-    { type:"right", distance:2, text:"Turn right and walk 2 meters" },
-    { type:"straight", distance:1, text:"Destination ahead" }
-  ];
+  if (arrowMesh) scene.remove(arrowMesh);
 
-  currentStepIndex = 0;
-
-  showStep(0);
-}
-
-function showStep(index) {
-
-  if (arrowMesh) {
-    scene.remove(arrowMesh);
-    arrowMesh.geometry.dispose();
-    arrowMesh.material.dispose();
-    arrowMesh = null;
-  }
-
-  const step = navigationSteps[index];
-
-  subtitle.innerText = step.text;
+  subtitle.innerText = steps[currentStep].text;
 
   const shape = new THREE.Shape();
-  shape.moveTo(0, 0.5);
-  shape.lineTo(-0.25, 0);
-  shape.lineTo(-0.1, 0);
-  shape.lineTo(-0.1, -0.5);
-  shape.lineTo(0.1, -0.5);
-  shape.lineTo(0.1, 0);
-  shape.lineTo(0.25, 0);
-  shape.lineTo(0, 0.5);
+  shape.moveTo(0, 0.6);
+  shape.lineTo(-0.3, 0);
+  shape.lineTo(-0.15, 0);
+  shape.lineTo(-0.15, -0.6);
+  shape.lineTo(0.15, -0.6);
+  shape.lineTo(0.15, 0);
+  shape.lineTo(0.3, 0);
+  shape.lineTo(0, 0.6);
 
   const geometry = new THREE.ShapeGeometry(shape);
   const material = new THREE.MeshBasicMaterial({ color:0x00ff00 });
 
   arrowMesh = new THREE.Mesh(geometry, material);
 
-  // Place 1.5m in front of user in world
-  const forward = new THREE.Vector3(0,0,-1);
-  forward.applyQuaternion(camera.quaternion);
-  forward.normalize();
+  arrowMesh.position.set(0, -0.2, -2);
+  arrowMesh.rotation.x = -Math.PI/2;
 
-  const position = camera.position.clone().add(forward.multiplyScalar(1.5));
-
-  arrowMesh.position.copy(position);
-  arrowMesh.lookAt(camera.position);
-  arrowMesh.rotateX(-Math.PI/2);
-
-  if (step.type === "left") {
-    arrowMesh.rotateZ(Math.PI/2);
+  if (steps[currentStep].type === "left") {
+    arrowMesh.rotation.z = Math.PI/2;
   }
 
-  if (step.type === "right") {
-    arrowMesh.rotateZ(-Math.PI/2);
+  if (steps[currentStep].type === "right") {
+    arrowMesh.rotation.z = -Math.PI/2;
   }
 
   scene.add(arrowMesh);
 
-  stepStartPosition.copy(camera.position);
-}
-
-function update() {
-
-  if (currentStepIndex >= navigationSteps.length) {
-    subtitle.innerText = "You reached your destination";
-    return;
-  }
-
-  const step = navigationSteps[currentStepIndex];
-
-  const distanceMoved = camera.position.distanceTo(stepStartPosition);
-
-  if (distanceMoved >= step.distance) {
-
-    currentStepIndex++;
-
-    if (currentStepIndex < navigationSteps.length) {
-      showStep(currentStepIndex);
+  // Auto change after 5 seconds
+  setTimeout(() => {
+    currentStep++;
+    if (currentStep < steps.length) {
+      showStep();
     } else {
       subtitle.innerText = "You reached your destination";
-      if (arrowMesh) scene.remove(arrowMesh);
+      scene.remove(arrowMesh);
     }
-  }
-
-  renderer.render(scene, camera);
+  }, 5000);
 }
