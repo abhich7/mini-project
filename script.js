@@ -1,18 +1,14 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
 let camera, scene, renderer;
-let pathGroup;
+let arrowMesh;
 let subtitle = document.getElementById("subtitle");
 
+let navigationSteps = [];
+let currentStepIndex = 0;
+let stepStartPosition = new THREE.Vector3();
+
 document.getElementById("startAR").addEventListener("click", async () => {
-
-  const source = document.getElementById("source").value;
-  const destination = document.getElementById("destination").value;
-
-  if (source === destination) {
-    alert("Source and Destination cannot be same.");
-    return;
-  }
 
   if (!navigator.xr) {
     alert("Use Chrome on Android");
@@ -23,10 +19,10 @@ document.getElementById("startAR").addEventListener("click", async () => {
     requiredFeatures: ["local-floor"]
   });
 
-  startAR(session, source, destination);
+  startAR(session);
 });
 
-async function startAR(session, source, destination) {
+async function startAR(session) {
 
   document.getElementById("ui").style.display = "none";
 
@@ -44,79 +40,90 @@ async function startAR(session, source, destination) {
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   scene.add(light);
 
-  createStablePath(source, destination);
+  setupRoute();
 
-  renderer.setAnimationLoop(() => {
-    renderer.render(scene, camera);
-  });
+  renderer.setAnimationLoop(update);
 }
 
-function createStablePath(source, destination) {
+function setupRoute() {
 
-  pathGroup = new THREE.Group();
-
-  // FIXED WORLD POSITION (NOT CAMERA ATTACHED)
-  pathGroup.position.set(0, 0, -2);
-
-  scene.add(pathGroup);
-
-  const routes = {
-    "SR-CAN": [
-      { type:"straight", text:"Walk straight 5 meters", dist:5 },
-      { type:"right", text:"Turn right", dist:3 },
-      { type:"straight", text:"Walk straight 4 meters to Canteen", dist:4 }
-    ],
-    "AK-JC": [
-      { type:"straight", text:"Walk straight 4 meters", dist:4 },
-      { type:"left", text:"Turn left", dist:4 },
-      { type:"straight", text:"You reached JC Block", dist:3 }
-    ]
-  };
-
-  const key = source + "-" + destination;
-  const route = routes[key] || [
-    { type:"straight", text:"Walk straight", dist:5 }
+  // IMAGINARY NAVIGATION
+  navigationSteps = [
+    { type:"straight", distance:2, text:"Walk straight 2 meters" },
+    { type:"left", distance:1.5, text:"Turn left and walk 1.5 meters" },
+    { type:"right", distance:2, text:"Turn right and walk 2 meters" },
+    { type:"straight", distance:1, text:"Destination is ahead" }
   ];
 
-  let direction = new THREE.Vector3(0,0,-1);
-  let currentPos = new THREE.Vector3(0,0,0);
+  currentStepIndex = 0;
 
-  route.forEach((step, index) => {
+  createArrow();
 
-    subtitle.innerText = route[0].text;
+  subtitle.innerText = navigationSteps[0].text;
 
-    if (step.type === "left") {
-      direction.applyAxisAngle(new THREE.Vector3(0,1,0), Math.PI/2);
+  stepStartPosition.copy(camera.position);
+}
+
+function createArrow() {
+
+  if (arrowMesh) scene.remove(arrowMesh);
+
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0.3);
+  shape.lineTo(-0.15, 0);
+  shape.lineTo(-0.05, 0);
+  shape.lineTo(-0.05, -0.3);
+  shape.lineTo(0.05, -0.3);
+  shape.lineTo(0.05, 0);
+  shape.lineTo(0.15, 0);
+  shape.lineTo(0, 0.3);
+
+  const geometry = new THREE.ShapeGeometry(shape);
+  const material = new THREE.MeshBasicMaterial({ color:0x00ff00 });
+
+  arrowMesh = new THREE.Mesh(geometry, material);
+
+  arrowMesh.position.set(0, 0, -1.5);
+  arrowMesh.rotation.x = -Math.PI / 2;
+
+  scene.add(arrowMesh);
+}
+
+function update() {
+
+  if (currentStepIndex >= navigationSteps.length) {
+    subtitle.innerText = "You have reached your destination";
+    return;
+  }
+
+  const step = navigationSteps[currentStepIndex];
+
+  const distanceMoved = camera.position.distanceTo(stepStartPosition);
+
+  if (distanceMoved >= step.distance) {
+
+    currentStepIndex++;
+
+    if (currentStepIndex < navigationSteps.length) {
+
+      subtitle.innerText = navigationSteps[currentStepIndex].text;
+
+      rotateArrow(navigationSteps[currentStepIndex].type);
+
+      stepStartPosition.copy(camera.position);
     }
+  }
 
-    if (step.type === "right") {
-      direction.applyAxisAngle(new THREE.Vector3(0,1,0), -Math.PI/2);
-    }
+  renderer.render(scene, camera);
+}
 
-    for (let i = 0; i < step.dist; i++) {
+function rotateArrow(type) {
 
-      const geo = new THREE.ConeGeometry(0.2, 0.5, 20);
-      const mat = new THREE.MeshStandardMaterial({ color:0x00ff00 });
-      const arrow = new THREE.Mesh(geo, mat);
+  if (type === "left") {
+    arrowMesh.rotation.z += Math.PI / 2;
+  }
 
-      arrow.rotation.x = Math.PI/2;
-
-      arrow.position.copy(currentPos);
-      arrow.position.add(direction.clone().multiplyScalar(i+1));
-
-      pathGroup.add(arrow);
-    }
-
-    currentPos.add(direction.clone().multiplyScalar(step.dist));
-  });
-
-  // BIG FINAL ARROW
-  const finalGeo = new THREE.ConeGeometry(0.4, 1, 20);
-  const finalMat = new THREE.MeshStandardMaterial({ color:0xff0000 });
-  const finalArrow = new THREE.Mesh(finalGeo, finalMat);
-
-  finalArrow.rotation.x = Math.PI/2;
-  finalArrow.position.copy(currentPos);
-
-  pathGroup.add(finalArrow);
+  if (type === "right") {
+    arrowMesh.rotation.z -= Math.PI / 2;
+  }
 }

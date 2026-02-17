@@ -3,6 +3,7 @@
 <head>
   <title>Campus AR Navigation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     body { margin:0; overflow:hidden; font-family:Arial; background:#f2f2f2; }
 
@@ -21,8 +22,6 @@
       text-align:center;
     }
 
-    h2 { margin:0 0 15px 0; }
-
     select, button {
       width:100%;
       padding:12px;
@@ -33,7 +32,7 @@
     }
 
     button {
-      background:#2ecc71;
+      background:#27ae60;
       color:white;
       font-weight:bold;
       border:none;
@@ -41,17 +40,18 @@
 
     #subtitle {
       position:absolute;
-      bottom:20px;
+      bottom:30px;
       width:100%;
       text-align:center;
-      font-size:18px;
+      font-size:20px;
       font-weight:bold;
       color:white;
-      text-shadow:0 0 10px black;
+      text-shadow:0 0 15px black;
       z-index:10;
     }
   </style>
 </head>
+
 <body>
 
 <div id="ui">
@@ -60,17 +60,11 @@
   <select id="source">
     <option value="SR">SR Block</option>
     <option value="AK">AK Block</option>
-    <option value="JC">JC Block</option>
-    <option value="MT">MT Block</option>
-    <option value="CAN">Canteen</option>
   </select>
 
   <select id="destination">
-    <option value="SR">SR Block</option>
-    <option value="AK">AK Block</option>
-    <option value="JC">JC Block</option>
-    <option value="MT">MT Block</option>
     <option value="CAN">Canteen</option>
+    <option value="JC">JC Block</option>
   </select>
 
   <button id="startAR">Start Navigation</button>
