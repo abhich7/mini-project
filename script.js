@@ -10,6 +10,19 @@ let stepStartPosition = new THREE.Vector3();
 
 document.getElementById("startAR").addEventListener("click", async () => {
 
+  const source = document.getElementById("source").value;
+  const destination = document.getElementById("destination").value;
+
+  if (!source || !destination) {
+    alert("Please select source and destination");
+    return;
+  }
+
+  if (source === destination) {
+    alert("Source and Destination cannot be same");
+    return;
+  }
+
   if (!navigator.xr) {
     alert("Use Chrome on Android");
     return;
@@ -19,12 +32,13 @@ document.getElementById("startAR").addEventListener("click", async () => {
     requiredFeatures: ["local-floor"]
   });
 
-  startAR(session);
+  startAR(session, source, destination);
 });
 
-async function startAR(session) {
+async function startAR(session, source, destination) {
 
   document.getElementById("ui").style.display = "none";
+  subtitle.style.display = "block";
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera();
@@ -40,14 +54,14 @@ async function startAR(session) {
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   scene.add(light);
 
-  setupRoute();
+  setupRoute(source, destination);
 
   renderer.setAnimationLoop(update);
 }
 
-function setupRoute() {
+function setupRoute(source, destination) {
 
-  // IMAGINARY NAVIGATION
+  // Example imaginary routes
   navigationSteps = [
     { type:"straight", distance:2, text:"Walk straight 2 meters" },
     { type:"left", distance:1.5, text:"Turn left and walk 1.5 meters" },
@@ -69,21 +83,21 @@ function createArrow() {
   if (arrowMesh) scene.remove(arrowMesh);
 
   const shape = new THREE.Shape();
-  shape.moveTo(0, 0.3);
-  shape.lineTo(-0.15, 0);
-  shape.lineTo(-0.05, 0);
-  shape.lineTo(-0.05, -0.3);
-  shape.lineTo(0.05, -0.3);
-  shape.lineTo(0.05, 0);
-  shape.lineTo(0.15, 0);
-  shape.lineTo(0, 0.3);
+  shape.moveTo(0, 0.4);
+  shape.lineTo(-0.2, 0);
+  shape.lineTo(-0.08, 0);
+  shape.lineTo(-0.08, -0.4);
+  shape.lineTo(0.08, -0.4);
+  shape.lineTo(0.08, 0);
+  shape.lineTo(0.2, 0);
+  shape.lineTo(0, 0.4);
 
   const geometry = new THREE.ShapeGeometry(shape);
   const material = new THREE.MeshBasicMaterial({ color:0x00ff00 });
 
   arrowMesh = new THREE.Mesh(geometry, material);
 
-  arrowMesh.position.set(0, 0, -1.5);
+  arrowMesh.position.set(0, -0.3, -1.5);
   arrowMesh.rotation.x = -Math.PI / 2;
 
   scene.add(arrowMesh);
