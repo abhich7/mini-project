@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
 
 let camera, scene, renderer;
-let arrowMesh;
+let arrowMesh = null;
 let subtitle = document.getElementById("subtitle");
 
 let navigationSteps = [];
@@ -19,7 +19,7 @@ document.getElementById("startAR").addEventListener("click", async () => {
   }
 
   if (source === destination) {
-    alert("Source and Destination cannot be same");
+    alert("Source and destination cannot be same");
     return;
   }
 
@@ -32,10 +32,10 @@ document.getElementById("startAR").addEventListener("click", async () => {
     requiredFeatures: ["local-floor"]
   });
 
-  startAR(session, source, destination);
+  startAR(session);
 });
 
-async function startAR(session, source, destination) {
+async function startAR(session) {
 
   document.getElementById("ui").style.display = "none";
   subtitle.style.display = "block";
@@ -54,59 +54,81 @@ async function startAR(session, source, destination) {
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   scene.add(light);
 
-  setupRoute(source, destination);
+  setupRoute();
 
   renderer.setAnimationLoop(update);
 }
 
-function setupRoute(source, destination) {
+function setupRoute() {
 
-  // Example imaginary routes
   navigationSteps = [
     { type:"straight", distance:2, text:"Walk straight 2 meters" },
     { type:"left", distance:1.5, text:"Turn left and walk 1.5 meters" },
     { type:"right", distance:2, text:"Turn right and walk 2 meters" },
-    { type:"straight", distance:1, text:"Destination is ahead" }
+    { type:"straight", distance:1, text:"Destination ahead" }
   ];
 
   currentStepIndex = 0;
 
-  createArrow();
-
-  subtitle.innerText = navigationSteps[0].text;
-
-  stepStartPosition.copy(camera.position);
+  showStep(0);
 }
 
-function createArrow() {
+function showStep(index) {
 
-  if (arrowMesh) scene.remove(arrowMesh);
+  if (arrowMesh) {
+    scene.remove(arrowMesh);
+    arrowMesh.geometry.dispose();
+    arrowMesh.material.dispose();
+    arrowMesh = null;
+  }
+
+  const step = navigationSteps[index];
+
+  subtitle.innerText = step.text;
 
   const shape = new THREE.Shape();
-  shape.moveTo(0, 0.4);
-  shape.lineTo(-0.2, 0);
-  shape.lineTo(-0.08, 0);
-  shape.lineTo(-0.08, -0.4);
-  shape.lineTo(0.08, -0.4);
-  shape.lineTo(0.08, 0);
-  shape.lineTo(0.2, 0);
-  shape.lineTo(0, 0.4);
+  shape.moveTo(0, 0.5);
+  shape.lineTo(-0.25, 0);
+  shape.lineTo(-0.1, 0);
+  shape.lineTo(-0.1, -0.5);
+  shape.lineTo(0.1, -0.5);
+  shape.lineTo(0.1, 0);
+  shape.lineTo(0.25, 0);
+  shape.lineTo(0, 0.5);
 
   const geometry = new THREE.ShapeGeometry(shape);
   const material = new THREE.MeshBasicMaterial({ color:0x00ff00 });
 
   arrowMesh = new THREE.Mesh(geometry, material);
 
-  arrowMesh.position.set(0, -0.3, -1.5);
-  arrowMesh.rotation.x = -Math.PI / 2;
+  // Place 1.5m in front of user in world
+  const forward = new THREE.Vector3(0,0,-1);
+  forward.applyQuaternion(camera.quaternion);
+  forward.normalize();
+
+  const position = camera.position.clone().add(forward.multiplyScalar(1.5));
+
+  arrowMesh.position.copy(position);
+  arrowMesh.lookAt(camera.position);
+  arrowMesh.rotateX(-Math.PI/2);
+
+  if (step.type === "left") {
+    arrowMesh.rotateZ(Math.PI/2);
+  }
+
+  if (step.type === "right") {
+    arrowMesh.rotateZ(-Math.PI/2);
+  }
 
   scene.add(arrowMesh);
+
+  stepStartPosition.copy(camera.position);
 }
 
 function update() {
 
   if (currentStepIndex >= navigationSteps.length) {
-    subtitle.innerText = "You have reached your destination";
+    subtitle.innerText = "You reached your destination";
     return;
   }
 
@@ -119,25 +141,12 @@ function update() {
     currentStepIndex++;
 
     if (currentStepIndex < navigationSteps.length) {
-
-      subtitle.innerText = navigationSteps[currentStepIndex].text;
-
-      rotateArrow(navigationSteps[currentStepIndex].type);
-
-      stepStartPosition.copy(camera.position);
+      showStep(currentStepIndex);
+    } else {
+      subtitle.innerText = "You reached your destination";
+      if (arrowMesh) scene.remove(arrowMesh);
     }
   }
 
   renderer.render(scene, camera);
-}
-
-function rotateArrow(type) {
-
-  if (type === "left") {
-    arrowMesh.rotation.z += Math.PI / 2;
-  }
-
-  if (type === "right") {
-    arrowMesh.rotation.z -= Math.PI / 2;
-  }
 }
